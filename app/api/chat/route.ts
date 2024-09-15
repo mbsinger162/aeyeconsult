@@ -84,15 +84,17 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(chunk));
         }
         controller.close();
+        // Log the full response after the stream is complete
+        console.log(`AI Response: ${fullResponse}`);
       },
     });
-
-    // Log the full response after the stream is complete
-    console.log(`AI Response: ${fullResponse}`);
 
     return new Response(readableStream);
   } catch (error: any) {
     console.error("Error in chat route:", error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
