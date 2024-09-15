@@ -25,7 +25,8 @@ export default function InitialPrompt({ onClose, onSubmit }: { onClose: () => vo
               <p>
                 I made this available for free for public testing but in order to keep it operational, I need to know more about users.<br /><br />
                 <strong>I&apos;d love to hear about your experience! Please share your background and how you&apos;re planning to use aeyeconsult.com.</strong><br /><br />
-                You can also email me directly at mbsinger162@gmail.com. Thank you! - <DynamicLinks />
+                You can also email me directly at mbsinger162@gmail.com. <br />
+                Thank you! - <DynamicLinks />
               </p>
         <form onSubmit={handleSubmit}>
         <textarea 
