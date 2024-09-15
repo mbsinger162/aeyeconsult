@@ -17,10 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <title>A-Eye Consult</title>
-      </head>
-      <body>
+      <body className="text-gray-900 bg-white">
         {children}
         <Analytics />
       </body>
