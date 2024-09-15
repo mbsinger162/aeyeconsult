@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 
 const DynamicLinks = dynamic(() => import('@/components/DynamicLinks'), { ssr: false })
 
-
 export default function InitialPrompt({ onClose, onSubmit }: { onClose: () => void; onSubmit: () => void }) {
   const [response, setResponse] = useState('');
 
@@ -25,7 +24,7 @@ export default function InitialPrompt({ onClose, onSubmit }: { onClose: () => vo
         <h2>Welcome to aeyeconsult.com!</h2>
               <p>
                 I made this available for free for public testing but in order to keep it operational, I need to know more about users.<br /><br />
-                <strong>I'd love to hear about your experience! Please share your background and how you're planning to use aeyeconsult.com.</strong><br /><br />
+                <strong>I&apos;d love to hear about your experience! Please share your background and how you&apos;re planning to use aeyeconsult.com.</strong><br /><br />
                 You can also email me directly at mbsinger162@gmail.com. Thank you! - <DynamicLinks />
               </p>
         <form onSubmit={handleSubmit}>
