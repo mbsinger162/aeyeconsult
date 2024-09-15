@@ -35,6 +35,9 @@ export async function POST(req: Request) {
 
     const currentMessage = messages[messages.length - 1].content;
 
+    // Log the user's query
+    console.log(`User Query: ${currentMessage}`);
+
     const chatModel = new ChatOpenAI({
       modelName: "gpt-4o",
       streaming: true,
@@ -66,34 +69,30 @@ export async function POST(req: Request) {
 
     const ragChain = await createRAGChain(chatModel, retriever);
 
+    let fullResponse = '';
+
     const stream = await ragChain.stream({
       input: currentMessage,
       chat_history: formattedPreviousMessages,
     });
 
-    const documents = await documentPromise;
-    const serializedSources = Buffer.from(
-      JSON.stringify(
-        documents.map((doc) => {
-          return {
-            pageContent: doc.pageContent,
-            metadata: doc.metadata,
-          };
-        })
-      )
-    ).toString("base64");
-
-    // Convert to bytes so that we can pass into the HTTP response
-    const byteStream = stream.pipeThrough(new TextEncoderStream());
-
-    return new Response(byteStream, {
-      headers: {
-        "x-message-index": (formattedPreviousMessages.length + 1).toString(),
-        "x-sources": serializedSources,
+    const encoder = new TextEncoder();
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          fullResponse += chunk;
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
       },
     });
-  } catch (error) {
-    console.error(error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+
+    // Log the full response after the stream is complete
+    console.log(`AI Response: ${fullResponse}`);
+
+    return new Response(readableStream);
+  } catch (error: any) {
+    console.error("Error in chat route:", error);
+    return Response.json({ error: error.message }, { status: 500 });
   }
 }
