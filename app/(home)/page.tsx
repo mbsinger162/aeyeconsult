@@ -241,6 +241,12 @@ export default function Home() {
               <p className="text-red-500">{error.message}</p>
             </div>
           )}
+          <div className="mx-auto flex flex-col gap-4 text-gray-900">
+            <h1 className="text-2xl font-bold leading-[1.1] tracking-tighter text-center text-black">
+              Chat With Eye Care Reference Texts
+            </h1>
+            ...
+          </div>
         </main>
       </div>
     </>
