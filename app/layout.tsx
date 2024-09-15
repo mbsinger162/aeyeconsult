@@ -6,7 +6,7 @@ import { Analytics } from '@vercel/analytics/react';
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AEye Consult",
+  title: "A-Eye Consult",
   description: "Chat With Eye Care Reference Texts",
 };
 
@@ -18,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>Next.js</title>
+        <title>A-Eye Consult</title>
       </head>
       <body>
         {children}
