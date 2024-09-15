@@ -26,9 +26,7 @@ function extractFileName(path: string) {
 }
 
 export default function Home() {
-  const [sourcesForMessages, setSourcesForMessages] = useState<
-    Record<string, any>
-  >({});
+  const [sourcesForMessages, setSourcesForMessages] = useState<Record<string, Document[]>>({});
   const [showPrompt, setShowPrompt] = useState(false);
 
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -40,21 +38,15 @@ export default function Home() {
     handleSubmit,
     isLoading,
     error,
-    setInput,
   } = useChat({
-    streamMode: "text",
-    onResponse(response) {
-      const sourcesHeader = response.headers.get("x-sources");
+    onFinish: (message) => {
+      const sourcesHeader = message.headers?.get("x-sources");
       const sources = sourcesHeader ? JSON.parse(atob(sourcesHeader)) : [];
-
-      const messageIndexHeader = response.headers.get("x-message-index");
-      if (sources.length && messageIndexHeader !== null) {
-        setSourcesForMessages({
-          ...sourcesForMessages,
-          [messageIndexHeader]: sources,
-        });
-
-        console.log(sourcesForMessages);
+      if (sources.length) {
+        setSourcesForMessages(prev => ({
+          ...prev,
+          [message.id]: sources,
+        }));
       }
     },
   });
@@ -63,7 +55,7 @@ export default function Home() {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
     }
-  }, [input]);
+  }, [messages]);
 
   useEffect(() => {
     const hasSeenPrompt = localStorage.getItem('hasSeenPrompt');
@@ -82,12 +74,10 @@ export default function Home() {
     localStorage.setItem('hasSeenPrompt', 'true');
   };
 
-  //prevent empty submissions
-  const handleEnter = (e: any) => {
-    if (e.key === "Enter" && input) {
-      handleSubmit(e);
-    } else if (e.key == "Enter") {
+  const handleEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && input) {
       e.preventDefault();
+      handleSubmit(e);
     }
   };
 
@@ -103,92 +93,59 @@ export default function Home() {
         <main className={styles.main}>
           <div className={styles.cloud}>
             <div ref={messageListRef} className={styles.messagelist}>
-              <div className={styles.apimessage}>
-                <Image
-                  src="/eye.png"
-                  alt="AI"
-                  width="40"
-                  height="40"
-                  className={styles.boticon}
-                  priority
-                />
-                <div className={styles.markdownanswer}>
-                  <ReactMarkdown>
-                    Hi, what question do you have about eye care?
-                  </ReactMarkdown>
-                </div>
-              </div>
               {messages.map((message, index) => {
-                let icon;
-                let className;
-                const sources = sourcesForMessages[index] || undefined;
+                const isAssistant = message.role === "assistant";
+                const icon = isAssistant ? (
+                  <Image
+                    src="/eye.png"
+                    alt="AI"
+                    width="40"
+                    height="40"
+                    className={styles.boticon}
+                    priority
+                  />
+                ) : (
+                  <Image
+                    src="/usericon.png"
+                    alt="Me"
+                    width="30"
+                    height="30"
+                    className={styles.usericon}
+                    priority
+                  />
+                );
+                const className = isAssistant ? styles.apimessage : styles.usermessage;
+                const sources = sourcesForMessages[message.id];
 
-                if (message.role === "assistant") {
-                  icon = (
-                    <Image
-                      key={index}
-                      src="/eye.png"
-                      alt="AI"
-                      width="40"
-                      height="40"
-                      className={styles.boticon}
-                      priority
-                    />
-                  );
-                  className = styles.apimessage;
-                } else {
-                  icon = (
-                    <Image
-                      key={index}
-                      src="/usericon.png"
-                      alt="Me"
-                      width="30"
-                      height="30"
-                      className={styles.usericon}
-                      priority
-                    />
-                  );
-                  className =
-                    isLoading && index === messages.length - 1
-                      ? styles.usermessagewaiting
-                      : styles.usermessage;
-                }
                 return (
-                  <>
-                    <div key={`chatMessage-${index}`} className={className}>
+                  <div key={`message-${index}`}>
+                    <div className={className}>
                       {icon}
                       <div className={styles.markdownanswer}>
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
                     </div>
-
-                    {sources && (
-                      <div className="p-5" key={`sourceDocsAccordion-${index}`}>
-                        <Accordion
-                          type="single"
-                          collapsible
-                          className="flex-col text-black"
-                        >
-                          {sources.map((doc: Document, index: number) => (
-                            <div key={`messageSourceDocs-${index}`}>
-                              <AccordionItem value={`item-${index}`}>
-                                <AccordionTrigger>
-                                  <h3>Source {index + 1}</h3>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                  <ReactMarkdown>{doc.pageContent}</ReactMarkdown>
-                                  <p className="mt-2">
-                                    <b>Source: </b>
-                                    {extractFileName(doc.metadata.source)}
-                                  </p>
-                                </AccordionContent>
-                              </AccordionItem>
-                            </div>
+                    {isAssistant && sources && sources.length > 0 && (
+                      <div className="p-5">
+                        <Accordion type="single" collapsible className="flex-col">
+                          {sources.map((doc: Document, sourceIndex: number) => (
+                            <AccordionItem key={`source-${sourceIndex}`} value={`item-${sourceIndex}`}>
+                              <AccordionTrigger>
+                                <h3>Source {sourceIndex + 1}</h3>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <ReactMarkdown>{doc.pageContent}</ReactMarkdown>
+                                <p className="mt-2">
+                                  <b>Source: </b>
+                                  {extractFileName(doc.metadata.source)}
+                                </p>
+                              </AccordionContent>
+                            </AccordionItem>
                           ))}
                         </Accordion>
                       </div>
                     )}
-                  </>
+                  </div>
                 );
               })}
             </div>
@@ -200,9 +157,6 @@ export default function Home() {
                   disabled={isLoading}
                   ref={textAreaRef}
                   autoFocus={false}
-                  value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={handleEnter}
                   rows={1}
                   maxLength={2000}
                   id="userInput"
@@ -212,6 +166,9 @@ export default function Home() {
                       ? "Waiting for response..."
                       : "What is the differential diagnosis for a red painful eye?"
                   }
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={handleEnter}
                   className={styles.textarea}
                 />
                 <button
@@ -241,8 +198,6 @@ export default function Home() {
               <p className="text-red-500">{error.message}</p>
             </div>
           )}
-          <div className="mx-auto flex flex-col gap-4 text-gray-900">
-          </div>
         </main>
       </div>
     </>
