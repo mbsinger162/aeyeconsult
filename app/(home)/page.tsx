@@ -42,16 +42,39 @@ export default function Home() {
     error,
     setInput,
   } = useChat({
-    onResponse(response) {
-      const sourcesHeader = response.headers?.get("x-sources");
-      const sources = sourcesHeader ? JSON.parse(atob(sourcesHeader)) : [];
-
-      const messageIndexHeader = response.headers?.get("x-message-index");
-      if (sources.length && messageIndexHeader !== null) {
-        setSourcesForMessages(prevSources => ({
-          ...prevSources,
-          [messageIndexHeader]: sources,
-        }));
+    api: '/api/chat',
+    onResponse: (response) => {
+      const sourcesHeader = response.headers.get('x-sources');
+      if (sourcesHeader) {
+        try {
+          const sources = JSON.parse(atob(sourcesHeader));
+          if (Array.isArray(sources) && sources.length > 0) {
+            setSourcesForMessages(prevSources => ({
+              ...prevSources,
+              [messages.length.toString()]: sources,
+            }));
+          }
+        } catch (error) {
+          console.error('Error parsing sourcesHeader:', error);
+        }
+      }
+    },
+    onFinish: (message) => {
+      if (message.function_call && typeof message.function_call === 'object') {
+        const functionArgs = message.function_call.arguments;
+        if (typeof functionArgs === 'string') {
+          try {
+            const parsedArgs = JSON.parse(functionArgs);
+            if (Array.isArray(parsedArgs.sources) && parsedArgs.sources.length > 0) {
+              setSourcesForMessages(prevSources => ({
+                ...prevSources,
+                [message.id]: parsedArgs.sources,
+              }));
+            }
+          } catch (error) {
+            console.error('Error parsing function arguments:', error);
+          }
+        }
       }
     },
   });
