@@ -42,39 +42,19 @@ export default function Home() {
     error,
     setInput,
   } = useChat({
-    api: '/api/chat',
-    onResponse: (response) => {
-      const sourcesHeader = response.headers.get('x-sources');
-      if (sourcesHeader) {
-        try {
-          const sources = JSON.parse(atob(sourcesHeader));
-          if (Array.isArray(sources) && sources.length > 0) {
-            setSourcesForMessages(prevSources => ({
-              ...prevSources,
-              [messages.length.toString()]: sources,
-            }));
-          }
-        } catch (error) {
-          console.error('Error parsing sourcesHeader:', error);
-        }
-      }
-    },
-    onFinish: (message) => {
-      if (message.function_call && typeof message.function_call === 'object') {
-        const functionArgs = message.function_call.arguments;
-        if (typeof functionArgs === 'string') {
-          try {
-            const parsedArgs = JSON.parse(functionArgs);
-            if (Array.isArray(parsedArgs.sources) && parsedArgs.sources.length > 0) {
-              setSourcesForMessages(prevSources => ({
-                ...prevSources,
-                [message.id]: parsedArgs.sources,
-              }));
-            }
-          } catch (error) {
-            console.error('Error parsing function arguments:', error);
-          }
-        }
+    streamMode: "text",
+    onResponse(response) {
+      const sourcesHeader = response.headers.get("x-sources");
+      const sources = sourcesHeader ? JSON.parse(atob(sourcesHeader)) : [];
+
+      const messageIndexHeader = response.headers.get("x-message-index");
+      if (sources.length && messageIndexHeader !== null) {
+        setSourcesForMessages({
+          ...sourcesForMessages,
+          [messageIndexHeader]: sources,
+        });
+
+        console.log(sourcesForMessages);
       }
     },
   });
@@ -83,7 +63,7 @@ export default function Home() {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [input]);
 
   useEffect(() => {
     const hasSeenPrompt = localStorage.getItem('hasSeenPrompt');
@@ -102,10 +82,12 @@ export default function Home() {
     localStorage.setItem('hasSeenPrompt', 'true');
   };
 
-  const handleEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && input) {
+  //prevent empty submissions
+  const handleEnter = (e: any) => {
+    if (e.key === "Enter" && input) {
+      handleSubmit(e);
+    } else if (e.key == "Enter") {
       e.preventDefault();
-      handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
     }
   };
 
@@ -139,7 +121,7 @@ export default function Home() {
               {messages.map((message, index) => {
                 let icon;
                 let className;
-                const sources = sourcesForMessages[index.toString()];
+                const sources = sourcesForMessages[index] || undefined;
 
                 if (message.role === "assistant") {
                   icon = (
@@ -172,39 +154,41 @@ export default function Home() {
                       : styles.usermessage;
                 }
                 return (
-                  <div key={`message-${index}`}>
-                    <div className={className}>
+                  <>
+                    <div key={`chatMessage-${index}`} className={className}>
                       {icon}
                       <div className={styles.markdownanswer}>
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
                     </div>
 
-                    {sources && sources.length > 0 && (
-                      <div className="p-5">
+                    {sources && (
+                      <div className="p-5" key={`sourceDocsAccordion-${index}`}>
                         <Accordion
                           type="single"
                           collapsible
                           className="flex-col text-black"
                         >
-                          {sources.map((doc: Document, sourceIndex: number) => (
-                            <AccordionItem key={`source-${sourceIndex}`} value={`item-${sourceIndex}`}>
-                              <AccordionTrigger>
-                                <h3>Source {sourceIndex + 1}</h3>
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <ReactMarkdown>{doc.pageContent}</ReactMarkdown>
-                                <p className="mt-2">
-                                  <b>Source: </b>
-                                  {extractFileName(doc.metadata.source)}
-                                </p>
-                              </AccordionContent>
-                            </AccordionItem>
+                          {sources.map((doc: Document, index: number) => (
+                            <div key={`messageSourceDocs-${index}`}>
+                              <AccordionItem value={`item-${index}`}>
+                                <AccordionTrigger>
+                                  <h3>Source {index + 1}</h3>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  <ReactMarkdown>{doc.pageContent}</ReactMarkdown>
+                                  <p className="mt-2">
+                                    <b>Source: </b>
+                                    {extractFileName(doc.metadata.source)}
+                                  </p>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </div>
                           ))}
                         </Accordion>
                       </div>
                     )}
-                  </div>
+                  </>
                 );
               })}
             </div>
@@ -257,6 +241,8 @@ export default function Home() {
               <p className="text-red-500">{error.message}</p>
             </div>
           )}
+          <div className="mx-auto flex flex-col gap-4 text-gray-900">
+          </div>
         </main>
       </div>
     </>
