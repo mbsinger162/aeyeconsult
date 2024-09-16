@@ -69,32 +69,34 @@ export async function POST(req: Request) {
 
     const ragChain = await createRAGChain(chatModel, retriever);
 
-    let fullResponse = '';
-
     const stream = await ragChain.stream({
       input: currentMessage,
       chat_history: formattedPreviousMessages,
     });
 
-    const encoder = new TextEncoder();
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        for await (const chunk of stream) {
-          fullResponse += chunk;
-          controller.enqueue(encoder.encode(chunk));
-        }
-        controller.close();
-        // Log the full response after the stream is complete
-        console.log(`AI Response: ${fullResponse}`);
+    const documents = await documentPromise;
+    const serializedSources = Buffer.from(
+      JSON.stringify(
+        documents.map((doc) => {
+          return {
+            pageContent: doc.pageContent,
+            metadata: doc.metadata,
+          };
+        })
+      )
+    ).toString("base64");
+
+    // Convert to bytes so that we can pass into the HTTP response
+    const byteStream = stream.pipeThrough(new TextEncoderStream());
+
+    return new Response(byteStream, {
+      headers: {
+        "x-message-index": (formattedPreviousMessages.length + 1).toString(),
+        "x-sources": serializedSources,
       },
     });
-
-    return new Response(readableStream);
-  } catch (error: any) {
-    console.error("Error in chat route:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
