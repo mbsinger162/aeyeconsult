@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     console.log(`User Query: ${currentMessage}`);
 
     const chatModel = new ChatOpenAI({
-      modelName: "o1",
+      modelName: "gpt-4o",
       streaming: true,
       maxTokens: 4000,
     });
